@@ -6,7 +6,7 @@
 # - Alexia John D. Pamintuan
 # - Anoucshka Ysabeli A. Sison
 #
-# Algorithms Included:
+# Required Algorithms:
 # 1. FIFO
 # 2. LRU
 # 3. MRU
@@ -14,23 +14,27 @@
 # 5. SECOND CHANCE
 #
 # Notes:
-# - This program is written as an original implementation for the project.
-# - External references may be used for understanding algorithm logic only.
-# - Be sure to cite all tutorials, videos, articles, or repositories used.
+# - This program is an original implementation.
+# - External materials may be used only as references for understanding.
+# - Cite all sources properly in the report.
 # =========================================================
 
 
+# ---------------------------
+# Utility Functions
+# ---------------------------
+
 def parse_reference_string(ref_input):
     """
-    Converts a space-separated string of page references into a list of integers.
-    Example: '7 0 1 2 0 3 0 4' -> [7, 0, 1, 2, 0, 3, 0, 4]
+    Converts a space-separated reference string into a list of integers.
+    Example: "7 0 1 2 0 3" -> [7, 0, 1, 2, 0, 3]
     """
-    return [int(value) for value in ref_input.strip().split()]
+    return [int(x) for x in ref_input.strip().split()]
 
 
 def calculate_rates(total_references, page_faults):
     """
-    Computes page hits, failure rate, and success rate.
+    Returns page hits, failure rate, and success rate.
     """
     page_hits = total_references - page_faults
     failure_rate = (page_faults / total_references) * 100 if total_references > 0 else 0
@@ -38,66 +42,68 @@ def calculate_rates(total_references, page_faults):
     return page_hits, failure_rate, success_rate
 
 
-def build_frame_display(frames, num_frames):
+def format_frames(frames, num_frames):
     """
-    Returns a copy of frames padded with '-' so all rows have equal width.
+    Pads frame contents with '-' so the output table remains aligned.
     """
     return frames[:] + ["-"] * (num_frames - len(frames))
 
 
-def record_step(steps, step_number, page, frames, num_frames, result, extra_info=""):
+def record_step(steps, step_number, page, frames, num_frames, interrupt, note=""):
     """
-    Stores one simulation step for later display in the output table.
+    Saves one simulation step for later display.
     """
     steps.append({
         "step": step_number,
         "page": page,
-        "frames": build_frame_display(frames, num_frames),
-        "result": result,
-        "extra": extra_info
+        "frames": format_frames(frames, num_frames),
+        "interrupt": interrupt,
+        "note": note
     })
 
 
 def print_results(algorithm_name, reference_string, num_frames, steps, page_faults):
     """
-    Prints the complete simulation table and summary.
+    Displays the complete simulation table and summary.
     """
     total_pages = len(reference_string)
     page_hits, failure_rate, success_rate = calculate_rates(total_pages, page_faults)
 
-    print("\n" + "=" * 110)
+    print("\n" + "=" * 120)
     print(f"Algorithm: {algorithm_name}")
     print(f"Number of Pages: {total_pages}")
     print(f"Number of Frames: {num_frames}")
     print("Page Reference String:", " ".join(map(str, reference_string)))
-    print("=" * 110)
+    print("=" * 120)
 
-    header = ["Step", "Page"] + [f"Frame{i + 1}" for i in range(num_frames)] + ["Interrupt", "Notes"]
+    # Table Header
+    header = ["Step", "Page"] + [f"Frame{i+1}" for i in range(num_frames)] + ["Interrupt", "Result / Notes"]
     print(f"{header[0]:<8}{header[1]:<8}", end="")
     for i in range(num_frames):
-        print(f"{header[i + 2]:<10}", end="")
-    print(f"{header[-2]:<12}{header[-1]:<20}")
+        print(f"{header[i+2]:<10}", end="")
+    print(f"{header[-2]:<12}{header[-1]:<25}")
 
-    print("-" * 110)
+    print("-" * 120)
 
+    # Table Rows
     for step in steps:
         print(f"{step['step']:<8}{step['page']:<8}", end="")
         for frame_value in step["frames"]:
             print(f"{str(frame_value):<10}", end="")
-        print(f"{step['result']:<12}{step['extra']:<20}")
+        print(f"{step['interrupt']:<12}{step['note']:<25}")
 
-    print("-" * 110)
+    print("-" * 120)
     print(f"Total Page Faults (Failures): {page_faults}")
     print(f"Total Page Hits (Successes): {page_hits}")
     print(f"Failure Rate: {failure_rate:.2f}%")
     print(f"Success Rate: {success_rate:.2f}%")
-    print("=" * 110)
+    print("=" * 120)
 
 
-# =========================================================
-# FIFO - First In, First Out
-# Replaces the oldest page currently in memory.
-# =========================================================
+# ---------------------------
+# FIFO
+# ---------------------------
+
 def fifo(reference_string, num_frames):
     frames = []
     pointer = 0
@@ -106,11 +112,8 @@ def fifo(reference_string, num_frames):
 
     for step_number, page in enumerate(reference_string, start=1):
         if page in frames:
-            result = "No"
-            note = "Hit"
+            record_step(steps, step_number, page, frames, num_frames, "No", "Hit")
         else:
-            result = "Yes"
-            note = "Fault"
             page_faults += 1
 
             if len(frames) < num_frames:
@@ -119,15 +122,15 @@ def fifo(reference_string, num_frames):
                 frames[pointer] = page
                 pointer = (pointer + 1) % num_frames
 
-        record_step(steps, step_number, page, frames, num_frames, result, note)
+            record_step(steps, step_number, page, frames, num_frames, "Yes", "Fault")
 
     return steps, page_faults
 
 
-# =========================================================
-# LRU - Least Recently Used
-# Replaces the page that has not been used for the longest time.
-# =========================================================
+# ---------------------------
+# LRU
+# ---------------------------
+
 def lru(reference_string, num_frames):
     frames = []
     last_used = {}
@@ -136,30 +139,28 @@ def lru(reference_string, num_frames):
 
     for step_number, page in enumerate(reference_string, start=1):
         if page in frames:
-            result = "No"
-            note = "Hit"
+            last_used[page] = step_number
+            record_step(steps, step_number, page, frames, num_frames, "No", "Hit")
         else:
-            result = "Yes"
-            note = "Fault"
             page_faults += 1
 
             if len(frames) < num_frames:
                 frames.append(page)
             else:
-                victim = min(frames, key=lambda frame_page: last_used[frame_page])
+                victim = min(frames, key=lambda p: last_used[p])
                 victim_index = frames.index(victim)
                 frames[victim_index] = page
 
-        last_used[page] = step_number
-        record_step(steps, step_number, page, frames, num_frames, result, note)
+            last_used[page] = step_number
+            record_step(steps, step_number, page, frames, num_frames, "Yes", "Fault")
 
     return steps, page_faults
 
 
-# =========================================================
-# MRU - Most Recently Used
-# Replaces the page that was used most recently.
-# =========================================================
+# ---------------------------
+# MRU
+# ---------------------------
+
 def mru(reference_string, num_frames):
     frames = []
     last_used = {}
@@ -168,31 +169,28 @@ def mru(reference_string, num_frames):
 
     for step_number, page in enumerate(reference_string, start=1):
         if page in frames:
-            result = "No"
-            note = "Hit"
+            last_used[page] = step_number
+            record_step(steps, step_number, page, frames, num_frames, "No", "Hit")
         else:
-            result = "Yes"
-            note = "Fault"
             page_faults += 1
 
             if len(frames) < num_frames:
                 frames.append(page)
             else:
-                victim = max(frames, key=lambda frame_page: last_used[frame_page])
+                victim = max(frames, key=lambda p: last_used[p])
                 victim_index = frames.index(victim)
                 frames[victim_index] = page
 
-        last_used[page] = step_number
-        record_step(steps, step_number, page, frames, num_frames, result, note)
+            last_used[page] = step_number
+            record_step(steps, step_number, page, frames, num_frames, "Yes", "Fault")
 
     return steps, page_faults
 
 
-# =========================================================
+# ---------------------------
 # OPTIMAL
-# Replaces the page whose next use is farthest in the future,
-# or not used again at all.
-# =========================================================
+# ---------------------------
+
 def optimal(reference_string, num_frames):
     frames = []
     page_faults = 0
@@ -202,39 +200,35 @@ def optimal(reference_string, num_frames):
         step_number = current_index + 1
 
         if page in frames:
-            result = "No"
-            note = "Hit"
+            record_step(steps, step_number, page, frames, num_frames, "No", "Hit")
         else:
-            result = "Yes"
-            note = "Fault"
             page_faults += 1
 
             if len(frames) < num_frames:
                 frames.append(page)
             else:
-                future_positions = {}
+                future_use = {}
 
                 for frame_page in frames:
                     if frame_page in reference_string[current_index + 1:]:
-                        next_use = reference_string[current_index + 1:].index(frame_page)
-                        future_positions[frame_page] = next_use
+                        next_index = reference_string[current_index + 1:].index(frame_page)
+                        future_use[frame_page] = next_index
                     else:
-                        future_positions[frame_page] = float("inf")
+                        future_use[frame_page] = float("inf")
 
-                victim = max(future_positions, key=future_positions.get)
+                victim = max(future_use, key=future_use.get)
                 victim_index = frames.index(victim)
                 frames[victim_index] = page
 
-        record_step(steps, step_number, page, frames, num_frames, result, note)
+            record_step(steps, step_number, page, frames, num_frames, "Yes", "Fault")
 
     return steps, page_faults
 
 
-# =========================================================
+# ---------------------------
 # SECOND CHANCE
-# FIFO-like replacement with reference bits.
-# Pages with reference bit = 1 are given another chance.
-# =========================================================
+# ---------------------------
+
 def second_chance(reference_string, num_frames):
     frames = []
     reference_bits = []
@@ -246,11 +240,12 @@ def second_chance(reference_string, num_frames):
         if page in frames:
             page_index = frames.index(page)
             reference_bits[page_index] = 1
-            result = "No"
-            note = "Hit"
+
+            bits_display = reference_bits[:] + ["-"] * (num_frames - len(reference_bits))
+            note = "Hit | Bits: " + " ".join(map(str, bits_display))
+            record_step(steps, step_number, page, frames, num_frames, "No", note)
+
         else:
-            result = "Yes"
-            note = "Fault"
             page_faults += 1
 
             if len(frames) < num_frames:
@@ -267,19 +262,17 @@ def second_chance(reference_string, num_frames):
                         reference_bits[pointer] = 0
                         pointer = (pointer + 1) % num_frames
 
-        bit_view = ""
-        if len(reference_bits) > 0:
-            visible_bits = reference_bits[:] + ["-"] * (num_frames - len(reference_bits))
-            bit_view = "Bits=" + "".join(str(bit) for bit in visible_bits)
-
-        record_step(steps, step_number, page, frames, num_frames, result, note + " " + bit_view)
+            bits_display = reference_bits[:] + ["-"] * (num_frames - len(reference_bits))
+            note = "Fault | Bits: " + " ".join(map(str, bits_display))
+            record_step(steps, step_number, page, frames, num_frames, "Yes", note)
 
     return steps, page_faults
 
 
-# =========================================================
-# INPUT UTILITIES
-# =========================================================
+# ---------------------------
+# Input / Menu Functions
+# ---------------------------
+
 def get_user_input():
     """
     Gets validated user input for number of frames and reference string.
@@ -292,7 +285,7 @@ def get_user_input():
                 continue
             break
         except ValueError:
-            print("Invalid input. Please enter a whole number.")
+            print("Invalid input. Please enter a valid integer.")
 
     while True:
         try:
@@ -324,9 +317,6 @@ def display_menu():
 
 
 def run_single_algorithm(choice, num_frames, reference_string):
-    """
-    Runs one selected algorithm.
-    """
     if choice == "1":
         steps, faults = fifo(reference_string, num_frames)
         print_results("FIFO", reference_string, num_frames, steps, faults)
@@ -349,9 +339,6 @@ def run_single_algorithm(choice, num_frames, reference_string):
 
 
 def run_all_algorithms(num_frames, reference_string):
-    """
-    Runs all five algorithms on the same input.
-    """
     algorithms = [
         ("FIFO", fifo),
         ("LRU", lru),
@@ -360,43 +347,44 @@ def run_all_algorithms(num_frames, reference_string):
         ("SECOND CHANCE", second_chance)
     ]
 
-    for algorithm_name, algorithm_function in algorithms:
-        steps, faults = algorithm_function(reference_string, num_frames)
-        print_results(algorithm_name, reference_string, num_frames, steps, faults)
+    for name, function in algorithms:
+        steps, faults = function(reference_string, num_frames)
+        print_results(name, reference_string, num_frames, steps, faults)
 
 
 def run_predefined_test_cases():
     """
-    Helps produce output for screenshots and report testing.
+    Useful for screenshots and sample outputs in the report.
     """
     test_cases = [
         {
+            "label": "Test Case 1",
             "frames": 3,
-            "reference": [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2],
-            "label": "Test Case 1"
+            "reference": [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2]
         },
         {
+            "label": "Test Case 2",
             "frames": 4,
-            "reference": [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5],
-            "label": "Test Case 2"
+            "reference": [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]
         },
         {
+            "label": "Test Case 3",
             "frames": 3,
-            "reference": [0, 4, 1, 4, 2, 4, 3, 4, 2, 4, 0, 4, 1, 4, 2, 4, 3, 4],
-            "label": "Test Case 3"
+            "reference": [0, 4, 1, 4, 2, 4, 3, 4, 2, 4, 0, 4, 1, 4, 2, 4, 3, 4]
         }
     ]
 
     for case in test_cases:
-        print("\n" + "#" * 110)
-        print(f"{case['label']}")
-        print("#" * 110)
+        print("\n" + "#" * 120)
+        print(case["label"])
+        print("#" * 120)
         run_all_algorithms(case["frames"], case["reference"])
 
 
-# =========================================================
-# MAIN PROGRAM
-# =========================================================
+# ---------------------------
+# Main Program
+# ---------------------------
+
 def main():
     while True:
         display_menu()
